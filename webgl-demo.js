@@ -44,7 +44,47 @@ function main(){
     // シェーダーのプログラムを初期化する
     const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
     
+    // シェーダープログラムを使用するために必要なすべての情報を収集します
+    // シェーダープログラムが使用している属性を検索する
+    // aVertexPositionの場合、均一な場所を検索します。
+    const programInfo = {
+        program: shaderProgram,
+        attribLocations: {
+            vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+        },
+        uniformLocation: {
+            projectionMatrix: gl.getUniformLocation(
+                shaderProgram,
+                "uProjectionMatrix"
+            ),
+            modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
+        },
+    }
 
+    initBuffers(gl);
+}
+
+// initBuffers
+// 必要なバッファーを初期化します
+// このデモでは、１つの単純な2次元の正方形のオブジェクトです
+function initBuffers(gl) {
+    // 正方形の位置のバッファーを作成します。
+    const positionBuffer = gl.createBuffer();
+
+    // 位置バッファーを適用するものとして選択します
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // 正方形の位置の配列を作成します
+    const positions = [
+         1.0,  1.0,
+        -1.0,  1.0,
+         1.0, -1.0,
+        -1.0, -1.0
+    ]
+
+    // ポジションの配列をWebGLに渡して形状を構築します
+    // これを行うことでJavaScriptの配列からfloat32Arrayを作成し、それを使用して現在のバッファーを埋めます
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 }
 
 // シェーダープログラムを初期化して、WebGLがデータの描画方法を認識できるようにする
