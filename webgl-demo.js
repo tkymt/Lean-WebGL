@@ -62,6 +62,9 @@ function main(){
     }
 
     initBuffers(gl);
+
+    // シーンを描画する
+    drawScene(gl, programInfo);
 }
 
 // initBuffers
@@ -130,4 +133,81 @@ function loadShader(gl, type, source) {
     }
 
     return shader;
+}
+
+function drawScene(gl, programInfo) {
+    gl.clearColor(0.0, 0.0, 0.0, 1.0); // 不透明の黒色でクリアする
+    gl.clearDepth(1.0); // すべてをクリアする
+    gl.enable(gl.DEPTH_TEST); // 深度テストを有効にする
+    gl.depthFunc(gl.LEQUAL); // 近くのものは遠くのものを曖昧にする
+
+    // 描画を開始する前に、キャンバスをクリアします
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // 遠近法マトリクス
+    // カメラの遠近法の歪みをシュミレートするために使用されます
+    // 私たちの視野は45度で、幅と高さがあります
+    // キャンバスの表示サイズに一致する比率
+    // 0.1単位の間のオブジェクトのみを見たい
+    // カメラから100ユニット離れています
+    const fieldOfView = (45 * Math.PI) / 180; //ラジアン単位
+    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    const zNear = 0.1;
+    const zFar = 100.0;
+    const projectionMatrix = mat4.create();
+
+    // glmatrix.jsは結果を受け取る先として最初の引数を持ちます
+    mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar);
+
+    // 描画位置を「アイデンティティ」ポイントに設定します
+    // シーンの中心です
+    const modelViewMatrix = mat4.create();
+
+    // 描画位置を目的の場所に移動します
+    // 正方形の描画を開始します
+    mat4.translate(
+        modelViewMatrix, // 結果を受け取るマトリクス
+        modelViewMatrix, // 移動するマトリクス
+        [-0.0, 0.0, -6.0]
+    );
+
+    // 位置バッファーから頂点の一族性に位置を引き出す方法をWebGLに伝えます
+    {
+        const numComponents = 2;
+        const type = gl.FLOAT;
+        const nomalize = false;
+        const stride = 0;
+        const offset = 0;
+        gl.vertexAttribPointer(
+            programInfo.attribLocations.vertexPosition,
+            numComponents,
+            type,
+            nomalize,
+            stride,
+            offset
+        );
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+    }
+
+    // 描画時に私たちのプログラムを使用するようにWebGLに指示する
+    gl.useProgram(programInfo.program);
+
+    // シェーダーユニフォームを設定する
+    gl.uniformMatrix4fv(
+        programInfo.uniformLocation.projectionMatrix,
+        false,
+        projectionMatrix
+    );
+
+    gl.uniformMatrix4fv(
+        programInfo.uniformLocation.modelViewMatrix,
+        false,
+        modelViewMatrix
+    );
+
+    {
+        const offset = 0;
+        const vertexCount = 4;
+        gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+    }
 }
