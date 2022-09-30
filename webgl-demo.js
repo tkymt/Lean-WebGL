@@ -1,18 +1,18 @@
-var squareRotation = 0.0;
+var cubeRotation = 0.0;
 
 main();
 
 //
 // ここから開始
 //
-function main(){
+function main() {
     const canvas = document.querySelector('#glCanvas');
     // GL コンテキストを初期化する
     const gl = canvas.getContext('webgl');
 
     // WebGL が使用可能で動作している場合にのみ続行します
     // 変数glがnullだったらmain関数をリターンして終了
-    if (!gl){
+    if (!gl) {
         alert("WebGLを初期化できません。ブラウザーまたはマシンが対応していない可能性があります。");
         return;
     }
@@ -50,7 +50,7 @@ function main(){
 
     // シェーダーのプログラムを初期化する
     const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-    
+
     // シェーダープログラムを使用するために必要なすべての情報を収集します
     // シェーダープログラムが使用している属性を検索する
     // aVertexPositionの場合、均一な場所を検索します。
@@ -98,31 +98,90 @@ function initBuffers(gl) {
 
     // 正方形の位置の配列を作成します
     const positions = [
-         1.0,  1.0,
-        -1.0,  1.0,
-         1.0, -1.0,
-        -1.0, -1.0
-    ]
+        // Front face
+        -1.0, -1.0, 1.0, 1.0,
+        -1.0, 1.0, 1.0, 1.0,
+        1.0, -1.0, 1.0, 1.0,
+
+        // Back face
+        -1.0, -1.0, -1.0,
+        -1.0, 1.0, -1.0,
+        1.0, 1.0, -1.0,
+        1.0, -1.0, -1.0,
+
+        // Top face
+        -1.0, 1.0, -1.0,
+        -1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0,
+        1.0, 1.0, -1.0,
+
+        // Bottom face
+        -1.0, -1.0, -1.0,
+        1.0, -1.0, -1.0,
+        1.0, -1.0, 1.0,
+        -1.0, -1.0, 1.0,
+
+        // Right face
+        1.0, -1.0, -1.0,
+        1.0, 1.0, -1.0,
+        1.0, 1.0, 1.0,
+        1.0, -1.0, 1.0,
+
+        // Left face
+        -1.0, -1.0, -1.0,
+        -1.0, -1.0, 1.0,
+        -1.0, 1.0, 1.0,
+        -1.0, 1.0, -1.0,
+    ];
 
     // ポジションの配列をWebGLに渡して形状を構築します
     // これを行うことでJavaScriptの配列からfloat32Arrayを作成し、それを使用して現在のバッファーを埋めます
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
     // 頂点の色を設定する
-    var colors = [
-        1.0, 1.0, 1.0, 1.0, // 白色
-        1.0 ,0.0, 0.0, 1.0, // 赤色
-        0.0, 1.0, 0.0, 1.0, // 緑色
-        0.0, 0.0, 1.0, 1.0 // 青色
+    var faceColors = [
+        [1.0, 1.0, 1.0, 1.0], // Front face : 白色
+        [1.0, 0.0, 0.0, 1.0], // Back face : 赤色
+        [0.0, 1.0, 0.0, 1.0], // Top face : 緑色
+        [0.0, 0.0, 1.0, 1.0], // Bottom face : 青色
+        [1.0, 1.0, 0.0, 1.0], // Right face : 黄色
+        [1.0, 0.0, 1.0, 1.0] // Left face : 紫
     ];
+
+    // 色の配列を頂点のテーブルに変換します
+    var colors = [];
+
+    for (let j = 0; j < faceColors.length; ++j) {
+        const c = faceColors[j];
+
+        // 面の４つの頂点に対して各色を割り当てます
+        colors = colors.concat(c, c, c, c);
+    }
 
     const colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(colors), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    // インデックスバッファーの作成
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+    const indices = [
+        0, 1, 2, 0, 2, 3, // front
+        4, 5, 6, 4, 6, 7, // back
+        8, 9, 10, 8, 10, 11, // top
+        12, 13, 14, 12, 14, 15, // bottom
+        16, 17, 18, 16, 18, 19, //right
+        20, 21, 22, 20, 22, 23 // left
+    ];
+
+    // GLにインデックスバッファーを送る
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
     return {
         position: positionBuffer,
-        color: colorBuffer
+        color: colorBuffer,
+        indices: indexBuffer
     };
 }
 
@@ -152,7 +211,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
 // 指定されたタイプのシェーダーを作成する。ソースのアップロードとコンパイルをする。
 function loadShader(gl, type, source) {
     const shader = gl.createShader(type);
-    
+
     // ソースをシェーダーオブジェクトに送信する
     gl.shaderSource(shader, source);
 
@@ -165,7 +224,7 @@ function loadShader(gl, type, source) {
             "シェーダーのコンパイル中にエラーが発生しました：" + gl.getShaderInfoLog(shader)
         );
         gl.deleteShader(shader);
-    return null;
+        return null;
     }
 
     return shader;
@@ -209,13 +268,13 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
     mat4.rotate(
         modelViewMatrix,
         modelViewMatrix,
-        squareRotation,
-        [0, 0, 1]
+        cubeRotation * 0.3,
+        [1, 0, 1]
     );
 
     // 位置バッファーから頂点の位置属性に位置を引き出す方法をWebGLに伝えます
     {
-        const numComponents = 2;
+        const numComponents = 3;
         const type = gl.FLOAT;
         const nomalize = false;
         const stride = 0;
@@ -251,6 +310,9 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
         gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
     }
 
+    // 頂点のインデックス作成に使用するインデックスをWebGLに指示する
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+
     // 描画時に私たちのプログラムを使用するようにWebGLに指示する
     gl.useProgram(programInfo.program);
 
@@ -268,11 +330,12 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
     );
 
     {
+        const vertexCount = 36;
+        const type = gl.UNSIGNED_SHORT;
         const offset = 0;
-        const vertexCount = 4;
-        gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+        gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
     }
 
     // 回転の値を更新する
-    squareRotation += deltaTime;
+    cubeRotation += deltaTime;
 }
