@@ -24,20 +24,25 @@ function main(){
     // 頂点シェーダーのプログラム
     const vsSource = `
         attribute vec4 aVertexPosition;
+        attribute vec4 aVertexColor;
 
         uniform mat4 uModelViewMatrix;
         uniform mat4 uProjectionMatrix;
 
-        void main(){
-           gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+        varying lowp vec4 vColor;
 
+        void main(){
+            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            vColor = aVertexColor;
         }
     `;
 
     // フラグメントシェーダーのプログラム
     const fsSource = `
+        varying lowp vec4 vColor;
+
         void main() {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            gl_FragColor = vColor;
         }
     `;
 
@@ -51,6 +56,7 @@ function main(){
         program: shaderProgram,
         attribLocations: {
             vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+            vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor")
         },
         uniformLocation: {
             projectionMatrix: gl.getUniformLocation(
@@ -61,10 +67,10 @@ function main(){
         },
     }
 
-    initBuffers(gl);
+    const buffers = initBuffers(gl);
 
     // シーンを描画する
-    drawScene(gl, programInfo);
+    drawScene(gl, programInfo, buffers);
 }
 
 // initBuffers
@@ -88,6 +94,23 @@ function initBuffers(gl) {
     // ポジションの配列をWebGLに渡して形状を構築します
     // これを行うことでJavaScriptの配列からfloat32Arrayを作成し、それを使用して現在のバッファーを埋めます
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    // 頂点の色を設定する
+    var colors = [
+        1.0, 1.0, 1.0, 1.0, // 白色
+        1.0 ,0.0, 0.0, 1.0, // 赤色
+        0.0, 1.0, 0.0, 1.0, // 緑色
+        0.0, 0.0, 1.0, 1.0 // 青色
+    ];
+
+    const colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(colors), gl.STATIC_DRAW);
+
+    return {
+        position: positionBuffer,
+        color: colorBuffer
+    };
 }
 
 // シェーダープログラムを初期化して、WebGLがデータの描画方法を認識できるようにする
@@ -135,7 +158,7 @@ function loadShader(gl, type, source) {
     return shader;
 }
 
-function drawScene(gl, programInfo) {
+function drawScene(gl, programInfo, buffers) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0); // 不透明の黒色でクリアする
     gl.clearDepth(1.0); // すべてをクリアする
     gl.enable(gl.DEPTH_TEST); // 深度テストを有効にする
@@ -171,13 +194,14 @@ function drawScene(gl, programInfo) {
         [-0.0, 0.0, -6.0]
     );
 
-    // 位置バッファーから頂点の一族性に位置を引き出す方法をWebGLに伝えます
+    // 位置バッファーから頂点の位置属性に位置を引き出す方法をWebGLに伝えます
     {
         const numComponents = 2;
         const type = gl.FLOAT;
         const nomalize = false;
         const stride = 0;
         const offset = 0;
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
         gl.vertexAttribPointer(
             programInfo.attribLocations.vertexPosition,
             numComponents,
@@ -187,6 +211,25 @@ function drawScene(gl, programInfo) {
             offset
         );
         gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+    }
+
+    // カラーバッファーからvertexColorアトリビュートに色を引き出す方法をWebGLに指示します
+    {
+        const numComponents = 4;
+        const type = gl.FLOAT;
+        const nomalize = false;
+        const stride = 0;
+        const offset = 0;
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+        gl.vertexAttribPointer(
+            programInfo.attribLocations.vertexColor,
+            numComponents,
+            type,
+            nomalize,
+            stride,
+            offset
+        );
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
     }
 
     // 描画時に私たちのプログラムを使用するようにWebGLに指示する
