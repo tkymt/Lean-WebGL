@@ -1,3 +1,5 @@
+var squareRotation = 0.0;
+
 main();
 
 //
@@ -69,8 +71,19 @@ function main(){
 
     const buffers = initBuffers(gl);
 
-    // シーンを描画する
-    drawScene(gl, programInfo, buffers);
+    var then = 0;
+
+    function render(now) {
+        now *= 0.001; // 秒に変換する
+        const deltaTime = now - then;
+        then = now;
+
+        // シーンを描画する
+        drawScene(gl, programInfo, buffers, deltaTime);
+
+        requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
 }
 
 // initBuffers
@@ -158,7 +171,7 @@ function loadShader(gl, type, source) {
     return shader;
 }
 
-function drawScene(gl, programInfo, buffers) {
+function drawScene(gl, programInfo, buffers, deltaTime) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0); // 不透明の黒色でクリアする
     gl.clearDepth(1.0); // すべてをクリアする
     gl.enable(gl.DEPTH_TEST); // 深度テストを有効にする
@@ -192,6 +205,12 @@ function drawScene(gl, programInfo, buffers) {
         modelViewMatrix, // 結果を受け取るマトリクス
         modelViewMatrix, // 移動するマトリクス
         [-0.0, 0.0, -6.0]
+    );
+    mat4.rotate(
+        modelViewMatrix,
+        modelViewMatrix,
+        squareRotation,
+        [0, 0, 1]
     );
 
     // 位置バッファーから頂点の位置属性に位置を引き出す方法をWebGLに伝えます
@@ -253,4 +272,7 @@ function drawScene(gl, programInfo, buffers) {
         const vertexCount = 4;
         gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
     }
+
+    // 回転の値を更新する
+    squareRotation += deltaTime;
 }
